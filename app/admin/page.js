@@ -133,6 +133,8 @@ function ShiftsTab() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reassigning, setReassigning] = useState(null); // shift id being reassigned
+  const [swapFirst, setSwapFirst] = useState(null);     // first shift picked for manual swap
 
   async function load() {
     const [a, b] = await Promise.all([fetch("/api/admin/users"), fetch("/api/admin/shifts")]);
@@ -174,6 +176,32 @@ function ShiftsTab() {
       body: JSON.stringify({ id }),
     });
     load();
+  }
+
+  async function reassign(shiftId, userId) {
+    setError(""); setOk("");
+    const res = await fetch("/api/admin/shifts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: shiftId, user_id: userId }),
+    });
+    const data = await res.json();
+    if (!res.ok) return setError(data.error || "Failed");
+    setOk("Shift reassigned — both members were notified.");
+    setReassigning(null); load();
+  }
+
+  async function manualSwap(secondId) {
+    setError(""); setOk("");
+    const res = await fetch("/api/admin/shifts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ swap: [swapFirst, secondId] }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setSwapFirst(null); return setError(data.error || "Failed"); }
+    setOk("Shifts swapped — both members were notified.");
+    setSwapFirst(null); load();
   }
 
   async function clearRange() {
@@ -280,6 +308,11 @@ function ShiftsTab() {
             <button className="btn small danger" onClick={clearRange}>Clear a date range…</button>
           </div>
         </div>
+        {swapFirst && (
+          <p className="success" style={{ marginTop: 8 }}>
+            Swap mode: now click "Swap with this" on the second shift. The two shifts will exchange owners.
+          </p>
+        )}
         {shifts === null && <p className="empty">Loading…</p>}
         {shifts !== null && visibleShifts.length === 0 && <p className="empty">No upcoming shifts.</p>}
         {Object.entries(byDate).map(([d, items]) => (
@@ -290,6 +323,26 @@ function ShiftsTab() {
                 <strong style={{ minWidth: 90 }}>{fmtTime(s.start_time)}–{fmtTime(s.end_time)}</strong>
                 <span className="grow">{s.users?.name || s.users?.username}</span>
                 {s.status !== "normal" && <span className={`badge ${s.status === "offered" ? "offered" : "accepted"}`}>{s.status}</span>}
+                {reassigning === s.id ? (
+                  <>
+                    <select autoFocus defaultValue="" onChange={(e) => e.target.value && reassign(s.id, e.target.value)}>
+                      <option value="">Move to…</option>
+                      {users.filter((u) => u.id !== s.user_id && u.role === "user").map((u) => (
+                        <option key={u.id} value={u.id}>{u.name || u.username}</option>
+                      ))}
+                    </select>
+                    <button className="btn small" onClick={() => setReassigning(null)}>✕</button>
+                  </>
+                ) : swapFirst && swapFirst !== s.id ? (
+                  <button className="btn small primary" onClick={() => manualSwap(s.id)}>Swap with this</button>
+                ) : swapFirst === s.id ? (
+                  <button className="btn small" onClick={() => setSwapFirst(null)}>✕ Cancel swap</button>
+                ) : (
+                  <>
+                    <button className="btn small" onClick={() => { setReassigning(s.id); setSwapFirst(null); }}>Reassign</button>
+                    <button className="btn small" onClick={() => { setSwapFirst(s.id); setReassigning(null); }}>Swap…</button>
+                  </>
+                )}
                 <button className="btn small danger" onClick={() => removeShift(s.id)}>Delete</button>
               </div>
             ))}
@@ -342,18 +395,22 @@ function AdminInner() {
   const { data: session, status } = useSession();
   const [tab, setTab] = useState("shifts");
   if (status === "loading") return <p className="empty">Loading…</p>;
-  if (session?.user?.role !== "admin")
-    return <p className="empty">This page is for administrators only.</p>;
+  const role = session?.user?.role;
+  if (!["admin", "manager"].includes(role))
+    return <p className="empty">This page is for administrators and Senior Service Managers.</p>;
+  const isAdmin = role === "admin";
   return (
     <>
-      <h1>Admin panel</h1>
+      <h1>{isAdmin ? "Admin panel" : "Shift management"}</h1>
       <div className="tabs">
         <button className={tab === "shifts" ? "active" : ""} onClick={() => setTab("shifts")}>Shifts</button>
-        <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Users</button>
+        {isAdmin && (
+          <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Users</button>
+        )}
         <button className={tab === "activity" ? "active" : ""} onClick={() => setTab("activity")}>Activity</button>
       </div>
       {tab === "shifts" && <ShiftsTab />}
-      {tab === "users" && <UsersTab />}
+      {tab === "users" && isAdmin && <UsersTab />}
       {tab === "activity" && <ActivityTab />}
     </>
   );

@@ -4,7 +4,7 @@ import { currentUser, json } from "@/lib/session";
 // GET -> latest 100 swap requests with names, for the admin Activity tab
 export async function GET() {
   const user = await currentUser();
-  if (!user || user.role !== "admin") return json({ error: "Admins only" }, 403);
+  if (!user || !["admin", "manager"].includes(user.role)) return json({ error: "Staff only" }, 403);
 
   const { data, error } = await db
     .from("swap_requests")

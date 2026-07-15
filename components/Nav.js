@@ -102,10 +102,16 @@ export default function Nav() {
           </Link>
         ))}
         {(role === "manager" || role === "admin") && (
-          <Link href="/approvals" className={`link ${pathname === "/approvals" ? "active" : ""}`}>Approvals</Link>
+          <>
+            <Link href="/approvals" className={`link ${pathname === "/approvals" ? "active" : ""}`}>Approvals</Link>
+            <Link href="/manage" className={`link ${pathname === "/manage" ? "active" : ""}`}>Manage</Link>
+          </>
         )}
         {role === "admin" && (
           <Link href="/admin" className={`link ${pathname === "/admin" ? "active" : ""}`}>Admin</Link>
+        )}
+        {role === "manager" && (
+          <Link href="/admin" className={`link ${pathname === "/admin" ? "active" : ""}`}>Manage</Link>
         )}
         <span className="spacer" />
         <Bell />
