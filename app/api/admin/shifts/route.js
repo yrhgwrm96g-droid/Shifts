@@ -12,7 +12,7 @@ export async function GET() {
   if (!(await requireAdmin())) return json({ error: "Admins only" }, 403);
   const { data, error } = await db
     .from("shifts")
-    .select("id, date, start_time, end_time, status, user_id, users(name, email)")
+    .select("id, date, start_time, end_time, status, user_id, users(name, username)")
     .gte("date", new Date().toISOString().slice(0, 10))
     .order("date").order("start_time");
   if (error) return json({ error: error.message }, 500);

@@ -114,7 +114,7 @@ export default function SchedulePage() {
             <div key={s.id} className="card row">
               <div className="grow">
                 <strong>{fmtTime(s.start_time)}–{fmtTime(s.end_time)}</strong>
-                {showTeam && <span className="muted"> · {s.users?.name || s.users?.email}</span>}
+                {showTeam && <span className="muted"> · {s.users?.name || s.users?.username}</span>}
                 {s.status === "offered" && <span className="badge offered" style={{ marginLeft: 8 }}>Offered</span>}
               </div>
               {!showTeam && s.status === "normal" && (

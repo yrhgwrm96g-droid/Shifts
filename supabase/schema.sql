@@ -1,12 +1,15 @@
--- Shift Swap — database schema
+-- Shift Swap — database schema (username + password version)
 -- Run this in Supabase: SQL Editor -> New query -> paste -> Run
+-- If you ran an older version of this schema before, first run:
+--   drop table if exists availability, swap_requests, shifts, users cascade;
 
 create table users (
   id uuid primary key default gen_random_uuid(),
-  email text unique not null,
+  username text unique not null,
+  password_hash text not null,
   name text,
   role text not null default 'user' check (role in ('user','admin')),
-  activated boolean not null default false,
+  must_change_password boolean not null default true,
   created_at timestamptz default now()
 );
 
@@ -43,8 +46,12 @@ create table availability (
   primary key (user_id, date)
 );
 
--- Insert yourself as the first admin (replace the email!)
-insert into users (email, role) values ('your.email@example.com', 'admin');
-
--- Example: whitelist colleagues
--- insert into users (email) values ('colleague1@example.com'), ('colleague2@example.com');
+-- First admin account.
+-- Username: admin   Temporary password: ChangeMe123!
+-- You will be forced to change it on first login.
+insert into users (username, password_hash, name, role) values (
+  'admin',
+  '$2a$10$ud7oOhSOiEnKiSy6LmLxTeYCCX49CDT/m8xGmTNpvunwx0kvcGd86',
+  'Administrator',
+  'admin'
+);

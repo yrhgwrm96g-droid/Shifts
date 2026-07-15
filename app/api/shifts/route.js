@@ -10,7 +10,7 @@ export async function GET(req) {
   const all = new URL(req.url).searchParams.get("all") === "1";
   let q = db
     .from("shifts")
-    .select("id, date, start_time, end_time, status, user_id, users(name, email)")
+    .select("id, date, start_time, end_time, status, user_id, users(name, username)")
     .gte("date", new Date().toISOString().slice(0, 10))
     .order("date")
     .order("start_time");
