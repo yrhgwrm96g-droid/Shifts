@@ -1,9 +1,14 @@
 import { db } from "@/lib/supabase";
 import { currentUser, json } from "@/lib/session";
 
+// Time helpers: minutes since midnight, wrapping around 24h (for night shifts like 23:00-07:00)
+const toMin = (t) => parseInt(t.slice(0, 2)) * 60 + parseInt(t.slice(3, 5));
+const toTime = (m) => {
+  const mm = ((m % 1440) + 1440) % 1440;
+  return `${String(Math.floor(mm / 60)).padStart(2, "0")}:${String(mm % 60).padStart(2, "0")}:00`;
+};
+
 // POST /api/swaps/:id { action: "accept", offered_shift_id? }
-// Giveaway: the accepting user takes over the shift.
-// Swap: the accepting user gives one of their own shifts in return.
 export async function POST(req, { params }) {
   const user = await currentUser();
   if (!user) return json({ error: "Unauthorized" }, 401);
@@ -19,10 +24,35 @@ export async function POST(req, { params }) {
     .from("shifts").select("*").eq("id", reqRow.shift_id).maybeSingle();
   if (!shift) return json({ error: "Shift not found" }, 404);
 
+  const portion = reqRow.portion || "full";
+
   if (reqRow.type === "giveaway") {
-    await db.from("shifts")
-      .update({ user_id: user.id, status: "swapped" })
-      .eq("id", shift.id);
+    if (portion === "full") {
+      await db.from("shifts")
+        .update({ user_id: user.id, status: "swapped" })
+        .eq("id", shift.id);
+    } else {
+      // Split the shift: 4 hours to the taker, the rest stays with the owner.
+      const start = toMin(shift.start_time);
+      let end = toMin(shift.end_time);
+      if (end <= start) end += 1440; // crosses midnight
+      const mid = portion === "first4" ? start + 240 : end - 240;
+
+      const takerStart = portion === "first4" ? start : mid;
+      const takerEnd = portion === "first4" ? mid : end;
+      const ownerStart = portion === "first4" ? mid : start;
+      const ownerEnd = portion === "first4" ? end : mid;
+
+      // Owner keeps the remaining part (update in place)
+      await db.from("shifts").update({
+        start_time: toTime(ownerStart), end_time: toTime(ownerEnd), status: "normal",
+      }).eq("id", shift.id);
+      // Taker gets a new shift row for their 4 hours
+      await db.from("shifts").insert({
+        user_id: user.id, date: shift.date,
+        start_time: toTime(takerStart), end_time: toTime(takerEnd), status: "swapped",
+      });
+    }
   } else {
     // swap: validate the shift offered in return
     const mineId = body.offered_shift_id;

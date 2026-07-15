@@ -1,7 +1,8 @@
 import { db } from "@/lib/supabase";
 import { currentUser, json } from "@/lib/session";
 
-// POST /api/shifts/:id  { action: "offer", type: "giveaway"|"swap", note? }
+// POST /api/shifts/:id  { action: "offer", type: "giveaway"|"swap", portion?, note? }
+//   portion: "full" (default) | "first4" | "last4"  (partial only for giveaways)
 // POST /api/shifts/:id  { action: "cancel_offer" }
 export async function POST(req, { params }) {
   const user = await currentUser();
@@ -16,8 +17,13 @@ export async function POST(req, { params }) {
   if (body.action === "offer") {
     if (shift.status !== "normal") return json({ error: "Shift is already offered" }, 400);
     if (!["giveaway", "swap"].includes(body.type)) return json({ error: "Invalid type" }, 400);
+    const portion = body.portion || "full";
+    if (!["full", "first4", "last4"].includes(portion)) return json({ error: "Invalid portion" }, 400);
+    if (portion !== "full" && body.type !== "giveaway")
+      return json({ error: "Partial (4-hour) offers are only for giveaways" }, 400);
     const { error } = await db.from("swap_requests").insert({
-      shift_id: shift.id, from_user: user.id, type: body.type, note: body.note || null,
+      shift_id: shift.id, from_user: user.id, type: body.type,
+      portion, note: body.note || null,
     });
     if (error) return json({ error: error.message }, 500);
     await db.from("shifts").update({ status: "offered" }).eq("id", shift.id);

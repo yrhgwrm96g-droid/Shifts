@@ -10,6 +10,7 @@ const fmtDate = (d) =>
 
 function OfferDialog({ shift, onClose, onDone }) {
   const [type, setType] = useState("giveaway");
+  const [portion, setPortion] = useState("full");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -19,7 +20,7 @@ function OfferDialog({ shift, onClose, onDone }) {
     const res = await fetch(`/api/shifts/${shift.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "offer", type, note }),
+      body: JSON.stringify({ action: "offer", type, portion: type === "giveaway" ? portion : "full", note }),
     });
     const data = await res.json();
     setBusy(false);
@@ -39,6 +40,16 @@ function OfferDialog({ shift, onClose, onDone }) {
             <option value="swap">Swap — someone gives me one of their shifts</option>
           </select>
         </label>
+        {type === "giveaway" && (
+          <label className="field grow">
+            How much
+            <select value={portion} onChange={(e) => setPortion(e.target.value)}>
+              <option value="full">Whole shift</option>
+              <option value="first4">First 4 hours only</option>
+              <option value="last4">Last 4 hours only</option>
+            </select>
+          </label>
+        )}
         <label className="field grow">
           Note (optional)
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. doctor appointment" />

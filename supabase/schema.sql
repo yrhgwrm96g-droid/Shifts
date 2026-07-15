@@ -31,6 +31,7 @@ create table swap_requests (
   from_user uuid not null references users(id) on delete cascade,
   to_user uuid references users(id),
   type text not null check (type in ('giveaway','swap')),
+  portion text not null default 'full' check (portion in ('full','first4','last4')),
   offered_shift_id uuid references shifts(id),
   note text,
   status text not null default 'pending' check (status in ('pending','accepted','declined','cancelled')),

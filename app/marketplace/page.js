@@ -98,7 +98,11 @@ export default function MarketplacePage() {
       {(offers || []).map((o) => (
         <div key={o.id} className="card row">
           <div className="grow">
-            <span className={`badge ${o.type}`}>{o.type === "giveaway" ? "Giveaway" : "Swap"}</span>
+            <span className={`badge ${o.type}`}>
+              {o.type === "swap" ? "Swap" :
+                o.portion === "first4" ? "Giveaway · first 4h" :
+                o.portion === "last4" ? "Giveaway · last 4h" : "Giveaway"}
+            </span>
             <strong style={{ marginLeft: 8 }}>
               {fmtDate(o.shifts.date)} · {fmtTime(o.shifts.start_time)}–{fmtTime(o.shifts.end_time)}
             </strong>
@@ -109,7 +113,7 @@ export default function MarketplacePage() {
           {o.from_user === me ? (
             <span className="muted">Your offer</span>
           ) : o.type === "giveaway" ? (
-            <button className="btn primary" onClick={() => take(o)}>Take this shift</button>
+            <button className="btn primary" onClick={() => take(o)}>{o.portion && o.portion !== "full" ? "Take these 4 hours" : "Take this shift"}</button>
           ) : (
             <button className="btn primary" onClick={() => setPicking(o)}>Propose my shift</button>
           )}

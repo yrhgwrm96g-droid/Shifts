@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await db
     .from("swap_requests")
-    .select("id, type, note, created_at, from_user, shifts(id, date, start_time, end_time), users!swap_requests_from_user_fkey(name)")
+    .select("id, type, portion, note, created_at, from_user, shifts(id, date, start_time, end_time), users!swap_requests_from_user_fkey(name)")
     .eq("status", "pending")
     .order("created_at", { ascending: false });
   if (error) return json({ error: error.message }, 500);

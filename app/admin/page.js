@@ -110,7 +110,7 @@ function UsersTab() {
 function ShiftsTab() {
   const [users, setUsers] = useState([]);
   const [shifts, setShifts] = useState(null);
-  const [form, setForm] = useState({ user_id: "", date: "", start_time: "09:00", end_time: "17:00", repeat_until: "" });
+  const [form, setForm] = useState({ user_id: "", date: "", start_time: "07:00", end_time: "15:00", pattern: "single", repeat_until: "" });
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
 
@@ -153,8 +153,21 @@ function ShiftsTab() {
               {users.map((u) => <option key={u.id} value={u.id}>{u.name || u.username}</option>)}
             </select>
           </label>
-          <label className="field">Date
+          <label className="field">
+            {form.pattern === "rota33" ? "First day of a 3-day work block" : "Date"}
             <input type="date" value={form.date} onChange={set("date")} />
+          </label>
+          <label className="field">Shift type
+            <select
+              value={`${form.start_time}-${form.end_time}`}
+              onChange={(e) => {
+                const [s, en] = e.target.value.split("-");
+                setForm({ ...form, start_time: s, end_time: en });
+              }}>
+              <option value="07:00-15:00">Morning (07–15)</option>
+              <option value="15:00-23:00">Afternoon (15–23)</option>
+              <option value="23:00-07:00">Night (23–07)</option>
+            </select>
           </label>
           <label className="field">Start
             <input type="time" value={form.start_time} onChange={set("start_time")} />
@@ -162,9 +175,18 @@ function ShiftsTab() {
           <label className="field">End
             <input type="time" value={form.end_time} onChange={set("end_time")} />
           </label>
-          <label className="field">Repeat weekly until (optional)
-            <input type="date" value={form.repeat_until} onChange={set("repeat_until")} />
+          <label className="field">Pattern
+            <select value={form.pattern} onChange={set("pattern")}>
+              <option value="single">Single shift</option>
+              <option value="weekly">Repeat weekly</option>
+              <option value="rota33">3 days on / 3 days off</option>
+            </select>
           </label>
+          {form.pattern !== "single" && (
+            <label className="field">Repeat until
+              <input type="date" value={form.repeat_until} onChange={set("repeat_until")} />
+            </label>
+          )}
           <button className="btn primary" onClick={add} disabled={!form.user_id || !form.date}>Add</button>
         </div>
         {error && <p className="error">{error}</p>}
