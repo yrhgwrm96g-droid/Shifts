@@ -262,3 +262,31 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
   .avail-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
   th, td { padding: 6px 6px; font-size: 13px; }
 }
+
+/* ---- Notification bell ---- */
+.bell-wrap { position: relative; }
+.bell-btn { position: relative; font-size: 15px; }
+.bell-badge {
+  position: absolute; top: -2px; right: -2px;
+  background: var(--red); color: #fff;
+  border-radius: 999px; font-size: 10px; font-weight: 700;
+  min-width: 15px; height: 15px; padding: 0 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bell-panel {
+  position: absolute; right: 0; top: 36px; z-index: 50;
+  width: 320px; max-width: 88vw; max-height: 420px; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+}
+.bell-title {
+  font-family: "Sora", sans-serif; font-weight: 600; font-size: 13px;
+  padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.bell-item { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.bell-item.unread { background: var(--green-soft); }
+.bell-item:last-child { border-bottom: none; }
+
+/* ---- Calendar filters ---- */
+.filter-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }

@@ -53,6 +53,15 @@ create table availability (
   primary key (user_id, date)
 );
 
+create table notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  message text not null,
+  read boolean not null default false,
+  created_at timestamptz default now()
+);
+create index notifications_user on notifications(user_id, read);
+
 -- First admin account.
 -- Username: admin   Temporary password: ChangeMe123!
 -- You will be forced to change it on first login.

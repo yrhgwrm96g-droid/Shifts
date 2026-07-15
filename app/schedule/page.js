@@ -104,6 +104,8 @@ export default function SchedulePage() {
   const [showTeam, setShowTeam] = useState(false);
   const [selected, setSelected] = useState(null);
   const [dayDetail, setDayDetail] = useState(null);
+  const [kindFilter, setKindFilter] = useState("all");   // all | morning | afternoon | night
+  const [personFilter, setPersonFilter] = useState("");  // user_id or ""
 
   // Calendar grid: starts Monday on/before the 1st, ends Sunday on/after the last day
   const gridStart = new Date(month);
@@ -125,8 +127,24 @@ export default function SchedulePage() {
   }
   useEffect(() => { setShifts(null); load(); }, [month, showTeam]);
 
+  const filtered = (shifts || []).filter((s) => {
+    if (!showTeam) return true;
+    if (kindFilter !== "all" && shiftKind(s.start_time) !== kindFilter) return false;
+    if (personFilter && s.user_id !== personFilter) return false;
+    return true;
+  });
   const byDate = {};
-  (shifts || []).forEach((s) => { (byDate[s.date] ||= []).push(s); });
+  filtered.forEach((s) => { (byDate[s.date] ||= []).push(s); });
+
+  const people = [];
+  const seen = new Set();
+  (shifts || []).forEach((s) => {
+    if (!seen.has(s.user_id)) {
+      seen.add(s.user_id);
+      people.push({ id: s.user_id, label: s.users?.name || s.users?.username || "?" });
+    }
+  });
+  people.sort((a, b) => a.label.localeCompare(b.label));
 
   // My total hours in the displayed month
   const monthPrefix = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-`;
@@ -194,6 +212,20 @@ export default function SchedulePage() {
           onClose={() => setSelected(null)}
           onDone={() => { setSelected(null); load(); }}
         />
+      )}
+
+      {showTeam && (
+        <div className="filter-bar">
+          {[["all", "All shifts"], ["morning", "Morning 07–15"], ["afternoon", "Afternoon 15–23"], ["night", "Night 23–07"]].map(([k, label]) => (
+            <button key={k}
+              className={`user-chip ${kindFilter === k ? "on" : ""}`}
+              onClick={() => setKindFilter(k)}>{label}</button>
+          ))}
+          <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}>
+            <option value="">Everyone</option>
+            {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+        </div>
       )}
 
       <div className="cal">

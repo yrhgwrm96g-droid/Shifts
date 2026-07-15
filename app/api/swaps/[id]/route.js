@@ -1,5 +1,6 @@
 import { db } from "@/lib/supabase";
 import { currentUser, json } from "@/lib/session";
+import { notify } from "@/lib/notify";
 
 const toMin = (t) => parseInt(t.slice(0, 2)) * 60 + parseInt(t.slice(3, 5));
 const toTime = (m) => {
@@ -7,6 +8,11 @@ const toTime = (m) => {
   return `${String(Math.floor(mm / 60)).padStart(2, "0")}:${String(mm % 60).padStart(2, "0")}:00`;
 };
 
+
+const fmtShift = (s) => {
+  const d = new Date(s.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return `${d} ${s.start_time.slice(0,5)}–${s.end_time.slice(0,5)}`;
+};
 async function transferGiveaway(reqRow, shift, takerId) {
   const portion = reqRow.portion || "full";
   if (portion === "full") {
@@ -57,6 +63,7 @@ export async function POST(req, { params }) {
       await db.from("swap_requests")
         .update({ status: "accepted", to_user: user.id, resolved_at: new Date().toISOString() })
         .eq("id", reqRow.id);
+      await notify(reqRow.from_user, `${user.name} took your shift ${fmtShift(shift)}. Your calendar is updated.`);
       return json({ ok: true });
     }
 
@@ -71,6 +78,7 @@ export async function POST(req, { params }) {
     await db.from("swap_requests")
       .update({ status: "awaiting_confirm", to_user: user.id, offered_shift_id: mine.id })
       .eq("id", reqRow.id);
+    await notify(reqRow.from_user, `${user.name} proposed a swap for your shift ${fmtShift(shift)} — open the Marketplace to confirm or decline.`);
     return json({ ok: true, proposed: true });
   }
 
@@ -87,15 +95,18 @@ export async function POST(req, { params }) {
     await db.from("swap_requests")
       .update({ status: "accepted", resolved_at: new Date().toISOString() })
       .eq("id", reqRow.id);
+    await notify(reqRow.to_user, `${user.name} confirmed your swap. You now have ${fmtShift(shift)}; they took ${fmtShift(theirs)}.`);
     return json({ ok: true });
   }
 
   if (body.action === "decline_proposal") {
     if (reqRow.status !== "awaiting_confirm") return json({ error: "Nothing to decline" }, 400);
     if (reqRow.from_user !== user.id) return json({ error: "Only the poster can decline" }, 403);
+    const declinedProposer = reqRow.to_user;
     await db.from("swap_requests")
       .update({ status: "pending", to_user: null, offered_shift_id: null })
       .eq("id", reqRow.id);
+    await notify(declinedProposer, `${user.name} declined your swap proposal for ${fmtShift(shift)}.`);
     return json({ ok: true });
   }
 
