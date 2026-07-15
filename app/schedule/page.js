@@ -103,6 +103,7 @@ export default function SchedulePage() {
   const [me, setMe] = useState(null);
   const [showTeam, setShowTeam] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [dayDetail, setDayDetail] = useState(null);
 
   // Calendar grid: starts Monday on/before the 1st, ends Sunday on/after the last day
   const gridStart = new Date(month);
@@ -127,6 +128,17 @@ export default function SchedulePage() {
   const byDate = {};
   (shifts || []).forEach((s) => { (byDate[s.date] ||= []).push(s); });
 
+  // My total hours in the displayed month
+  const monthPrefix = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-`;
+  const myHours = (shifts || [])
+    .filter((s) => s.user_id === me && s.date.startsWith(monthPrefix))
+    .reduce((sum, s) => {
+      const start = parseInt(s.start_time.slice(0, 2)) * 60 + parseInt(s.start_time.slice(3, 5));
+      let end = parseInt(s.end_time.slice(0, 2)) * 60 + parseInt(s.end_time.slice(3, 5));
+      if (end <= start) end += 1440;
+      return sum + (end - start) / 60;
+    }, 0);
+
   const monthLabel = month.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const todayIso = iso(new Date());
 
@@ -135,6 +147,9 @@ export default function SchedulePage() {
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
         <h1 style={{ margin: 0 }}>{showTeam ? "Team schedule" : "My schedule"}</h1>
         <div className="row">
+          <span className="hours-pill" title="Your total scheduled hours this month">
+            {Math.round(myHours * 10) / 10} h this month
+          </span>
           <button className="btn" onClick={() => setShowTeam(!showTeam)}>
             {showTeam ? "My shifts" : "Whole team"}
           </button>
@@ -146,6 +161,32 @@ export default function SchedulePage() {
         <h2 style={{ margin: 0 }}>{monthLabel}</h2>
         <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>Next →</button>
       </div>
+
+      {dayDetail && byDate[dayDetail] && (
+        <div className="card" style={{ borderColor: "var(--green)" }}>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <h2 style={{ margin: 0 }}>{fmtDate(dayDetail)}</h2>
+            <button className="btn small" onClick={() => setDayDetail(null)}>✕ Close</button>
+          </div>
+          <div className="day-detail-list">
+            {byDate[dayDetail]
+              .slice()
+              .sort((a, b) => a.start_time.localeCompare(b.start_time))
+              .map((s) => {
+                const kind = shiftKind(s.start_time);
+                return (
+                  <div key={s.id} className="row" style={{ gap: 8 }}>
+                    <span className={`shift-chip ${kind}`} style={{ cursor: "default" }}>
+                      {KIND_LABEL[kind]} {fmtTime(s.start_time)}–{fmtTime(s.end_time)}
+                    </span>
+                    <span>{s.users?.name || s.users?.username}{s.user_id === me ? " (you)" : ""}</span>
+                    {s.status === "offered" && <span className="badge offered">offered</span>}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {selected && (
         <OfferDialog
@@ -165,7 +206,9 @@ export default function SchedulePage() {
           const dayShifts = byDate[key] || [];
           return (
             <div key={key}
-              className={`cal-cell ${inMonth ? "" : "out"} ${key === todayIso ? "today" : ""}`}>
+              className={`cal-cell ${inMonth ? "" : "out"} ${key === todayIso ? "today" : ""}`}
+              onClick={() => { if (showTeam && dayShifts.length > 0) setDayDetail(key); }}
+              style={showTeam && dayShifts.length > 0 ? { cursor: "pointer" } : undefined}>
               <div className="cal-daynum">{d.getDate()}</div>
               {dayShifts.map((s) => {
                 const kind = shiftKind(s.start_time);
@@ -174,7 +217,7 @@ export default function SchedulePage() {
                   <button
                     key={s.id}
                     className={`shift-chip ${kind} ${s.status === "offered" ? "is-offered" : ""} ${isMine && !showTeam ? "clickable" : ""}`}
-                    onClick={() => { if (isMine) setSelected(s); }}
+                    onClick={(e) => { if (isMine && !showTeam) { e.stopPropagation(); setSelected(s); } }}
                     title={`${KIND_LABEL[kind]} ${fmtTime(s.start_time)}–${fmtTime(s.end_time)}${s.status === "offered" ? " (offered)" : ""}`}>
                     {showTeam
                       ? <>{(s.users?.name || s.users?.username || "").split(" ")[0]} <span className="chip-time">{fmtTime(s.start_time)}</span></>
@@ -194,11 +237,11 @@ export default function SchedulePage() {
         <span className="legend"><span className="dot-sample night" /> Night 23–07</span>
         <span className="legend"><strong>!</strong> = offered on marketplace</span>
       </div>
-      {!showTeam && (
-        <p className="muted" style={{ marginTop: 4 }}>
-          Tap one of your shifts to offer it for giveaway or swap, or to cancel an offer.
-        </p>
-      )}
+      <p className="muted" style={{ marginTop: 4 }}>
+        {showTeam
+          ? "Tap a day to see exactly who is working and when."
+          : "Tap one of your shifts to offer it for giveaway or swap, or to cancel an offer."}
+      </p>
       {shifts !== null && shifts.length === 0 && (
         <p className="empty">No shifts this month{showTeam ? "" : " — your administrator adds schedules"}.</p>
       )}

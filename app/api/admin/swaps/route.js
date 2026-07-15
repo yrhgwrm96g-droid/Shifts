@@ -10,7 +10,7 @@ export async function GET() {
     .from("swap_requests")
     .select(`
       id, type, portion, note, status, created_at, resolved_at,
-      shifts(date, start_time, end_time),
+      shifts!swap_requests_shift_id_fkey(date, start_time, end_time),
       from:users!swap_requests_from_user_fkey(name, username),
       to:users!swap_requests_to_user_fkey(name, username)
     `)

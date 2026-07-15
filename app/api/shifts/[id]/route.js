@@ -33,7 +33,7 @@ export async function POST(req, { params }) {
   if (body.action === "cancel_offer") {
     await db.from("swap_requests")
       .update({ status: "cancelled", resolved_at: new Date().toISOString() })
-      .eq("shift_id", shift.id).eq("status", "pending");
+      .eq("shift_id", shift.id).in("status", ["pending", "awaiting_confirm"]);
     await db.from("shifts").update({ status: "normal" }).eq("id", shift.id);
     return json({ ok: true });
   }

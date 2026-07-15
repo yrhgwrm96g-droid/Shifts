@@ -8,7 +8,7 @@ create table users (
   username text unique not null,
   password_hash text not null,
   name text,
-  role text not null default 'user' check (role in ('user','admin')),
+  role text not null default 'user' check (role in ('user','admin','manager')),
   must_change_password boolean not null default true,
   created_at timestamptz default now()
 );
@@ -34,9 +34,15 @@ create table swap_requests (
   portion text not null default 'full' check (portion in ('full','first4','last4')),
   offered_shift_id uuid references shifts(id),
   note text,
-  status text not null default 'pending' check (status in ('pending','accepted','declined','cancelled')),
+  status text not null default 'pending' check (status in ('pending','awaiting_confirm','accepted','declined','cancelled')),
+  main_approved boolean not null default false,
+  main_approved_by uuid references users(id),
+  main_approved_at timestamptz,
   created_at timestamptz default now(),
-  resolved_at timestamptz
+  resolved_at timestamptz,
+  main_approved boolean not null default false,
+  main_approved_by uuid references users(id),
+  main_approved_at timestamptz
 );
 create index swap_requests_status on swap_requests(status);
 

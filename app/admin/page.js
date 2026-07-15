@@ -84,7 +84,8 @@ function UsersTab() {
           </label>
           <label className="field">Role
             <select value={form.role} onChange={set("role")}>
-              <option value="user">User</option>
+              <option value="user">User (has shifts)</option>
+              <option value="manager">Manager (approves deals)</option>
               <option value="admin">Admin</option>
             </select>
           </label>
@@ -96,7 +97,7 @@ function UsersTab() {
       </div>
       <div className="card">
         <h2>Team ({users?.length ?? "…"})</h2>
-        <table>
+        <div className="table-wrap"><table>
           <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Password</th><th></th></tr></thead>
           <tbody>
             {(users || []).map((u) => (
@@ -112,7 +113,7 @@ function UsersTab() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </>
   );
@@ -312,7 +313,7 @@ function ActivityTab() {
       <p className="muted">Latest 100 requests — who offered what, and who took it.</p>
       {rows === null && <p className="empty">Loading…</p>}
       {rows?.length === 0 && <p className="empty">No activity yet.</p>}
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>Shift</th><th>Type</th><th>From</th><th>To</th><th>Status</th></tr></thead>
         <tbody>
           {(rows || []).map((r) => (
@@ -331,7 +332,7 @@ function ActivityTab() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

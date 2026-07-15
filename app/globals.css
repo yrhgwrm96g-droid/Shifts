@@ -17,6 +17,9 @@
   --red: #e0705f;
   --red-soft: rgba(224, 112, 95, 0.15);
   --radius: 10px;
+  --nav-bg: rgba(16, 21, 31, 0.85);
+  --login-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  --flag-ink: #10151f;
 }
 
 * { box-sizing: border-box; }
@@ -39,7 +42,7 @@ a { color: var(--green); }
 
 /* Nav */
 .nav {
-  background: rgba(16, 21, 31, 0.85);
+  background: var(--nav-bg);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 10;
@@ -153,7 +156,7 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
 .login-card {
   background: var(--card); border: 1px solid var(--line); border-radius: 14px;
   padding: 40px 32px; max-width: 380px; width: 100%; text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  box-shadow: var(--login-shadow);
 }
 
 /* ---- Calendar ---- */
@@ -195,7 +198,7 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
 .shift-chip.is-offered { outline: 2px dashed var(--amber); }
 .chip-time { font-weight: 400; opacity: 0.75; }
 .chip-flag {
-  background: var(--amber); color: #10151f; border-radius: 999px;
+  background: var(--amber); color: var(--flag-ink); border-radius: 999px;
   width: 14px; height: 14px; font-size: 10px; font-weight: 800;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0; margin-left: auto;
@@ -216,4 +219,46 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+
+/* ---- Light theme ---- */
+[data-theme="light"] {
+  --bg: #f2f4f1;
+  --bg-glow: radial-gradient(1200px 600px at 70% -10%, rgba(47, 109, 90, 0.08), transparent);
+  --card: #ffffff;
+  --card-raised: #ffffff;
+  --ink: #21302a;
+  --muted: #64756d;
+  --line: #dde3de;
+  --green: #2f6d5a;
+  --green-strong: #2f6d5a;
+  --green-soft: #e3efe9;
+  --amber: #a8721c;
+  --amber-soft: #f7ecd9;
+  --blue: #4650a0;
+  --blue-soft: #e7e9f7;
+  --red: #a83a2e;
+  --red-soft: #f6e2e0;
+  --nav-bg: rgba(255, 255, 255, 0.9);
+  --login-shadow: 0 20px 60px rgba(33, 48, 42, 0.12);
+  --flag-ink: #ffffff;
+}
+[data-theme="light"] input, [data-theme="light"] select { color-scheme: light; }
+
+/* ---- Mobile polish ---- */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.day-detail-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.hours-pill {
+  background: var(--green-soft); color: var(--green);
+  border-radius: 999px; padding: 4px 12px; font-weight: 700; font-size: 13px;
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .container { padding: 16px 8px 48px; }
+  h1 { font-size: 20px; }
+  .nav-name { display: none; }
+  button.btn { padding: 10px 14px; }  /* bigger touch targets */
+  .avail-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  th, td { padding: 6px 6px; font-size: 13px; }
 }
