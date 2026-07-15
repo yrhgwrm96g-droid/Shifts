@@ -136,3 +136,61 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ---- Calendar ---- */
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  background: transparent;
+}
+.cal-head {
+  text-align: center; font-size: 12px; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 4px 0;
+}
+.cal-cell {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 84px;
+  padding: 4px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.cal-cell.out { opacity: 0.45; }
+.cal-cell.today { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+.cal-daynum { font-size: 12px; font-weight: 600; color: var(--muted); }
+.cal-cell.today .cal-daynum { color: var(--green); }
+
+.shift-chip {
+  font: inherit; font-size: 11.5px; font-weight: 600;
+  border: none; border-radius: 6px; padding: 3px 5px;
+  text-align: left; cursor: default; line-height: 1.25;
+  display: flex; align-items: center; gap: 4px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.shift-chip.clickable { cursor: pointer; }
+.shift-chip.clickable:hover { filter: brightness(0.93); }
+.shift-chip.morning { background: #fdeeca; color: #8a5a00; }
+.shift-chip.afternoon { background: var(--green-soft); color: var(--green); }
+.shift-chip.night { background: #e2e5f7; color: #3b4699; }
+.shift-chip.is-offered { outline: 2px dashed var(--amber); }
+.chip-time { font-weight: 400; opacity: 0.8; }
+.chip-flag {
+  background: var(--amber); color: #fff; border-radius: 999px;
+  width: 14px; height: 14px; font-size: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-left: auto;
+}
+.legend { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.dot-sample { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.dot-sample.morning { background: #f5c96b; }
+.dot-sample.afternoon { background: #7fb8a4; }
+.dot-sample.night { background: #97a1e0; }
+
+@media (max-width: 700px) {
+  .cal { gap: 2px; }
+  .cal-cell { min-height: 64px; padding: 2px; border-radius: 6px; }
+  .shift-chip { font-size: 9.5px; padding: 2px 3px; }
+  .chip-time { display: none; }
+}
