@@ -55,7 +55,7 @@ export default function AvailabilityPage() {
       <h2 style={{ marginTop: 24 }}>My next {DAYS_AHEAD} days</h2>
       <div className="avail-grid">
         {days.map((d) => {
-          const key = d.toISOString().slice(0, 10);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           const pref = mine[key];
           const cls = pref === "want_to_work" ? "want" : pref === "prefer_off" ? "off" : "";
           return (

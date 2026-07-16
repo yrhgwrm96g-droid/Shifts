@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import Shell from "@/components/Shell";
 
 const fmtTime = (t) => t?.slice(0, 5);
-const iso = (d) => d.toISOString().slice(0, 10);
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const fmtDate = (d) =>
   new Date(d + "T00:00:00").toLocaleDateString(undefined, {
     weekday: "short", day: "numeric", month: "short",
@@ -152,7 +152,7 @@ function ShiftsTab() {
   const [showForm, setShowForm] = useState(false);
   const [warning, setWarning] = useState(null); // capacity warning from server
 
-  const iso = (d) => d.toISOString().slice(0, 10);
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const gridStart = new Date(month);
   gridStart.setDate(1 - ((month.getDay() + 6) % 7));
   const cells = [];

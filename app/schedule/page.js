@@ -5,7 +5,7 @@ import BottomSheet from "@/components/BottomSheet";
 import useIsMobile from "@/components/useIsMobile";
 
 const fmtTime = (t) => t?.slice(0, 5);
-const iso = (d) => d.toISOString().slice(0, 10);
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const fmtDate = (d) =>
   new Date(d + "T00:00:00").toLocaleDateString(undefined, {
     weekday: "long", day: "numeric", month: "long",
