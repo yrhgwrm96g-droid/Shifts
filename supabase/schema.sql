@@ -62,6 +62,14 @@ create table notifications (
 );
 create index notifications_user on notifications(user_id, read);
 
+create table push_subscriptions (
+  endpoint text primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  subscription jsonb not null,
+  created_at timestamptz default now()
+);
+create index push_subs_user on push_subscriptions(user_id);
+
 -- First admin account.
 -- Username: admin   Temporary password: ChangeMe123!
 -- You will be forced to change it on first login.

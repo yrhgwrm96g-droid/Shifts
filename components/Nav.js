@@ -28,11 +28,70 @@ function ThemeToggle() {
   );
 }
 
+function usePush() {
+  const [state, setState] = useState("checking"); // checking|unsupported|off|on|denied
+  useEffect(() => {
+    (async () => {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return setState("unsupported");
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        if (Notification.permission === "denied") return setState("denied");
+        const sub = await reg.pushManager.getSubscription();
+        setState(sub ? "on" : "off");
+      } catch { setState("unsupported"); }
+    })();
+  }, []);
+
+  async function enable() {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") return setState("denied");
+      const reg = await navigator.serviceWorker.ready;
+      const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key),
+      });
+      await fetch("/api/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      });
+      setState("on");
+    } catch { setState("unsupported"); }
+  }
+
+  async function disable() {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch("/api/push", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        });
+        await sub.unsubscribe();
+      }
+      setState("off");
+    } catch {}
+  }
+  return { state, enable, disable };
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
 function Bell() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const push = usePush();
 
   async function load() {
     try {
@@ -73,6 +132,27 @@ function Bell() {
       {open && (
         <div className="bell-panel">
           <div className="bell-title">Notifications</div>
+          {push.state === "off" && (
+            <div className="bell-item">
+              <button className="btn small primary" style={{ width: "100%" }} onClick={push.enable}>
+                🔔 Enable phone notifications
+              </button>
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                Get a notification on this device when your shift is taken, swapped or approved.
+              </div>
+            </div>
+          )}
+          {push.state === "on" && (
+            <div className="bell-item row" style={{ justifyContent: "space-between" }}>
+              <span className="muted" style={{ fontSize: 12 }}>Phone notifications: on ✓</span>
+              <button className="btn small" onClick={push.disable}>Turn off</button>
+            </div>
+          )}
+          {push.state === "denied" && (
+            <div className="bell-item muted" style={{ fontSize: 12 }}>
+              Notifications are blocked for this site in your device settings.
+            </div>
+          )}
           {items.length === 0 && <div className="muted" style={{ padding: "12px" }}>Nothing yet.</div>}
           {items.map((n) => (
             <div key={n.id} className={`bell-item ${n.read ? "" : "unread"}`}>
