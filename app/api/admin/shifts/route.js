@@ -14,14 +14,19 @@ const fmtShift = (s) => {
   return `${d} ${s.start_time.slice(0, 5)}\u2013${s.end_time.slice(0, 5)}`;
 };
 
-// GET -> all upcoming shifts
-export async function GET() {
+// GET -> shifts; ?from=YYYY-MM-DD&to=YYYY-MM-DD for a calendar range, else upcoming
+export async function GET(req) {
   if (!(await requireStaff())) return json({ error: "Staff only" }, 403);
-  const { data, error } = await db
+  const p = new URL(req.url).searchParams;
+  const from = p.get("from") || new Date().toISOString().slice(0, 10);
+  const to = p.get("to");
+  let q = db
     .from("shifts")
     .select("id, date, start_time, end_time, status, user_id, users(name, username)")
-    .gte("date", new Date().toISOString().slice(0, 10))
+    .gte("date", from)
     .order("date").order("start_time");
+  if (to) q = q.lte("date", to);
+  const { data, error } = await q;
   if (error) return json({ error: error.message }, 500);
   return json({ shifts: data });
 }
@@ -62,6 +67,36 @@ export async function POST(req) {
 
   if (rows.length === 0) return json({ error: "No shifts generated - check the dates" }, 400);
   if (rows.length > 600) return json({ error: "Too many shifts at once (max 600) - shorten the date range" }, 400);
+
+  // Capacity check: warn if any target day already has 5+ members on this shift type
+  if (!body.force) {
+    const kindOf = (t) => {
+      const h = parseInt(t.slice(0, 2));
+      if (h >= 5 && h < 12) return "morning";
+      if (h >= 12 && h < 20) return "afternoon";
+      return "night";
+    };
+    const newKind = kindOf(start_time);
+    const { data: existing } = await db
+      .from("shifts")
+      .select("date, start_time, user_id")
+      .in("date", dates);
+    const counts = {};
+    (existing || []).forEach((s) => {
+      if (kindOf(s.start_time) === newKind)
+        counts[s.date] = (counts[s.date] || 0) + 1;
+    });
+    const addPerDay = userIds.length;
+    const fullDays = dates.filter((d) => (counts[d] || 0) >= 5 || (counts[d] || 0) + addPerDay > 5);
+    if (fullDays.length > 0) {
+      return json({
+        overcapacity: true,
+        kind: newKind,
+        days: fullDays,
+        counts: fullDays.map((d) => ({ date: d, existing: counts[d] || 0 })),
+      }, 409);
+    }
+  }
 
   const { error } = await db.from("shifts").insert(rows);
   if (error) return json({ error: error.message }, 500);

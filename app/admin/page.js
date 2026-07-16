@@ -100,7 +100,7 @@ function UsersTab() {
               <option value="admin">Admin</option>
             </select>
           </label>
-          <button className="btn primary" onClick={add}
+          <button className="btn primary" onClick={() => add(false)}
             disabled={!form.username || !form.temp_password}>Create</button>
         </div>
         {error && <p className="error">{error}</p>}
@@ -136,114 +136,23 @@ function ShiftsTab() {
   const [users, setUsers] = useState([]);
   const [shifts, setShifts] = useState(null);
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-
-  // add-shifts wizard
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const [shiftType, setShiftType] = useState(0);
+  const [shiftType, setShiftType] = useState(0); // index into SHIFT_TYPES, -1 = custom
   const [custom, setCustom] = useState({ start: "07:00", end: "15:00" });
   const [pattern, setPattern] = useState("rota33");
   const [date, setDate] = useState("");
   const [until, setUntil] = useState("");
-  const [showWizard, setShowWizard] = useState(false);
-
-  // calendar interactions
-  const [action, setAction] = useState(null);      // shift selected for edit
-  const [swapFirst, setSwapFirst] = useState(null); // shift picked as first in a manual swap
-  const [personFilter, setPersonFilter] = useState("");
   const [kindFilter, setKindFilter] = useState("all");
-
+  const [personFilter, setPersonFilter] = useState("");
+  const [selected, setSelected] = useState(null);   // shift being acted on
+  const [swapFirst, setSwapFirst] = useState(null); // shift picked first for manual swap
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [warning, setWarning] = useState(null); // capacity warning from server
 
-  async function load() {
-    const [a, b] = await Promise.all([fetch("/api/admin/users"), fetch("/api/admin/shifts")]);
-    setUsers((await a.json()).users || []);
-    setShifts((await b.json()).shifts || []);
-  }
-  useEffect(() => { load(); }, []);
-
-  const flash = (msg) => { setOk(msg); setError(""); setTimeout(() => setOk(""), 5000); };
-  const fail = (msg) => { setError(msg); setOk(""); };
-
-  /* --- wizard --- */
-  const toggleUser = (id) =>
-    setSelectedUsers((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
-  const times = shiftType === -1 ? custom : { start: SHIFT_TYPES[shiftType].start, end: SHIFT_TYPES[shiftType].end };
-
-  async function addShifts() {
-    setBusy(true); setError("");
-    const res = await fetch("/api/admin/shifts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_ids: selectedUsers, date,
-        start_time: times.start, end_time: times.end,
-        pattern, repeat_until: pattern === "single" ? undefined : until,
-      }),
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!res.ok) return fail(data.error || "Failed");
-    flash(`Created ${data.created} shift(s).`);
-    load();
-  }
-
-  /* --- calendar actions --- */
-  async function reassign(shiftId, userId) {
-    const res = await fetch("/api/admin/shifts", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: shiftId, user_id: userId }),
-    });
-    const data = await res.json();
-    if (!res.ok) return fail(data.error || "Failed");
-    flash("Shift reassigned — both members were notified.");
-    setAction(null); load();
-  }
-
-  async function manualSwap(secondId) {
-    const res = await fetch("/api/admin/shifts", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ swap: [swapFirst.id, secondId] }),
-    });
-    const data = await res.json();
-    setSwapFirst(null); setAction(null);
-    if (!res.ok) return fail(data.error || "Failed");
-    flash("Shifts swapped — both members were notified.");
-    load();
-  }
-
-  async function removeShift(id) {
-    if (!confirm("Delete this shift?")) return;
-    const res = await fetch("/api/admin/shifts", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    const data = await res.json();
-    if (!res.ok) return fail(data.error || "Failed");
-    flash("Shift deleted — the member was notified.");
-    setAction(null); load();
-  }
-
-  async function clearRange() {
-    if (!personFilter) return fail("Pick a member in the filter first, then clear their range.");
-    const from = prompt("Delete this member's shifts FROM date (YYYY-MM-DD):");
-    if (!from) return;
-    const to = prompt("...TO date (YYYY-MM-DD):");
-    if (!to) return;
-    if (!confirm(`Delete ALL shifts for this member from ${from} to ${to}?`)) return;
-    await fetch("/api/admin/shifts", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: personFilter, from, to }),
-    });
-    flash("Range cleared."); load();
-  }
-
-  /* --- calendar grid --- */
+  const iso = (d) => d.toISOString().slice(0, 10);
   const gridStart = new Date(month);
   gridStart.setDate(1 - ((month.getDay() + 6) % 7));
   const cells = [];
@@ -252,6 +161,81 @@ function ShiftsTab() {
     d.setDate(gridStart.getDate() + i);
     cells.push(d);
   }
+  const gridEnd = cells[41];
+
+  const shiftKind = (start) => {
+    const h = parseInt(start.slice(0, 2));
+    if (h >= 5 && h < 12) return "morning";
+    if (h >= 12 && h < 20) return "afternoon";
+    return "night";
+  };
+
+  async function load() {
+    const [a, b] = await Promise.all([
+      fetch("/api/admin/users"),
+      fetch(`/api/admin/shifts?from=${iso(gridStart)}&to=${iso(gridEnd)}`),
+    ]);
+    setUsers((await a.json()).users || []);
+    setShifts((await b.json()).shifts || []);
+  }
+  useEffect(() => { setShifts(null); setSelected(null); load(); }, [month]);
+
+  const toggleUser = (id) =>
+    setSelectedUsers((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+
+  const times = shiftType === -1 ? custom : { start: SHIFT_TYPES[shiftType].start, end: SHIFT_TYPES[shiftType].end };
+
+  async function add(force = false) {
+    setError(""); setOk(""); if (!force) setWarning(null);
+    setBusy(true);
+    const res = await fetch("/api/admin/shifts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_ids: selectedUsers,
+        date,
+        start_time: times.start,
+        end_time: times.end,
+        pattern,
+        repeat_until: pattern === "single" ? undefined : until,
+        force,
+      }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (res.status === 409 && data.overcapacity) {
+      setWarning(data);
+      return;
+    }
+    if (!res.ok) return setError(data.error || "Failed");
+    setWarning(null);
+    setOk(`Created ${data.created} shift(s).`);
+    load();
+  }
+
+  async function api(method, body, successMsg) {
+    setError(""); setOk("");
+    const res = await fetch("/api/admin/shifts", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) return setError(data.error || "Failed");
+    if (successMsg) setOk(successMsg);
+    setSelected(null); setSwapFirst(null);
+    load();
+  }
+
+  function onChipClick(s) {
+    if (swapFirst && swapFirst.id !== s.id) {
+      if (!confirm(`Swap owners?\n${swapFirst.users?.name || swapFirst.users?.username}: ${swapFirst.date} ${swapFirst.start_time.slice(0,5)}\n⇅\n${s.users?.name || s.users?.username}: ${s.date} ${s.start_time.slice(0,5)}`)) return;
+      api("PATCH", { swap: [swapFirst.id, s.id] }, "Shifts swapped — both members were notified.");
+      return;
+    }
+    setSelected(selected?.id === s.id ? null : s);
+  }
+
   const filtered = (shifts || []).filter((s) => {
     if (kindFilter !== "all" && shiftKind(s.start_time) !== kindFilter) return false;
     if (personFilter && s.user_id !== personFilter) return false;
@@ -259,21 +243,21 @@ function ShiftsTab() {
   });
   const byDate = {};
   filtered.forEach((s) => { (byDate[s.date] ||= []).push(s); });
+
+  const members = users.filter((u) => u.role === "user");
   const monthLabel = month.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const todayIso = iso(new Date());
-  const members = users.filter((u) => u.role === "user");
 
   return (
     <>
-      {/* Add-shifts wizard (collapsible) */}
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h2 style={{ margin: 0 }}>Add shifts</h2>
-          <button className="btn small" onClick={() => setShowWizard(!showWizard)}>
-            {showWizard ? "Hide" : "Open"}
+          <button className="btn small" onClick={() => setShowForm(!showForm)}>
+            {showForm ? "Hide" : "Open"}
           </button>
         </div>
-        {showWizard && (
+        {showForm && (
           <>
             <p className="muted" style={{ margin: "10px 0 6px" }}>1 · Who is working? (tap to select several)</p>
             <div className="user-chips">
@@ -326,125 +310,149 @@ function ShiftsTab() {
                   <input type="date" value={until} onChange={(e) => setUntil(e.target.value)} />
                 </label>
               )}
-              <button className="btn primary" onClick={addShifts}
+              <button className="btn primary" onClick={() => add(false)}
                 disabled={busy || selectedUsers.length === 0 || !date || (pattern !== "single" && !until)}>
                 {busy ? "Creating…" : `Create for ${selectedUsers.length || "…"} member(s)`}
               </button>
             </div>
-            {pattern === "rota33" && (
-              <p className="muted" style={{ marginTop: 8 }}>
-                Tip: enter the first day of a working block — e.g. if the group works Aug 3, 4, 5, enter Aug 3.
-              </p>
-            )}
+            <p className="muted" style={{ marginTop: 8 }}>
+              Tip: tap a day on the calendar below to put its date into this form.
+            </p>
           </>
         )}
         {error && <p className="error">{error}</p>}
         {ok && <p className="success">{ok}</p>}
+        {warning && (
+          <div className="card" style={{ borderColor: "var(--amber)", marginTop: 10 }}>
+            <strong style={{ color: "var(--amber)" }}>⚠ Already 5 members on the {warning.kind} shift</strong>
+            <p className="muted" style={{ margin: "6px 0" }}>
+              These day(s) already have 5 (or would exceed 5) members working the {warning.kind} shift:
+            </p>
+            <p style={{ margin: "4px 0 10px" }}>
+              {warning.counts.map((c) =>
+                `${new Date(c.date + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })} (${c.existing} already)`
+              ).join(" · ")}
+            </p>
+            <div className="row">
+              <button className="btn primary" onClick={() => add(true)} disabled={busy}>Create anyway</button>
+              <button className="btn" onClick={() => setWarning(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Action panel for the clicked shift */}
-      {action && (
-        <div className="card" style={{ borderColor: "var(--green)" }}>
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0 }}>
-              {fmtDateLong(action.date)} · {fmtTime(action.start_time)}–{fmtTime(action.end_time)}
-              <span className="muted" style={{ fontWeight: 400 }}> — {action.users?.name || action.users?.username}</span>
-            </h2>
-            <button className="btn small" onClick={() => { setAction(null); setSwapFirst(null); }}>✕ Close</button>
-          </div>
-          {action.status === "offered" && (
-            <p className="muted">This shift is currently offered on the marketplace — moving it will cancel the offer.</p>
-          )}
-          <div className="row" style={{ marginTop: 10 }}>
-            <label className="field">Reassign to
-              <select defaultValue="" onChange={(e) => e.target.value && reassign(action.id, e.target.value)}>
-                <option value="">— choose member —</option>
-                {members.filter((u) => u.id !== action.user_id).map((u) => (
-                  <option key={u.id} value={u.id}>{u.name || u.username}</option>
-                ))}
-              </select>
-            </label>
-            <button className="btn" onClick={() => { setSwapFirst(action); setAction(null); }}>
-              Swap with another shift…
-            </button>
-            <button className="btn danger" onClick={() => removeShift(action.id)}>Delete shift</button>
-          </div>
-        </div>
-      )}
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>← Prev</button>
+        <h2 style={{ margin: 0 }}>{monthLabel}</h2>
+        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>Next →</button>
+      </div>
 
-      {/* Swap-mode banner */}
+      <div className="filter-bar">
+        {[["all", "All"], ["morning", "Morning"], ["afternoon", "Afternoon"], ["night", "Night"]].map(([k, label]) => (
+          <button key={k}
+            className={`user-chip ${kindFilter === k ? "on" : ""}`}
+            onClick={() => setKindFilter(k)}>{label}</button>
+        ))}
+        <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}>
+          <option value="">Everyone</option>
+          {members.map((u) => <option key={u.id} value={u.id}>{u.name || u.username}</option>)}
+        </select>
+      </div>
+
       {swapFirst && (
         <div className="card" style={{ borderColor: "var(--amber)" }}>
           <div className="row" style={{ justifyContent: "space-between" }}>
             <span>
-              <strong>Swap mode:</strong> now click the second shift on the calendar.
-              Swapping {fmtDate(swapFirst.date)} {fmtTime(swapFirst.start_time)}–{fmtTime(swapFirst.end_time)}{" "}
-              ({swapFirst.users?.name || swapFirst.users?.username}) with…
+              <strong>Swap mode:</strong> first shift selected —{" "}
+              {swapFirst.users?.name || swapFirst.users?.username}, {fmtDate(swapFirst.date)}{" "}
+              {fmtTime(swapFirst.start_time)}–{fmtTime(swapFirst.end_time)}. Now click the second shift on the calendar.
             </span>
             <button className="btn small" onClick={() => setSwapFirst(null)}>✕ Cancel</button>
           </div>
         </div>
       )}
 
-      {/* Calendar */}
-      <div className="card">
-        <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-          <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>← Prev</button>
-          <h2 style={{ margin: 0 }}>{monthLabel}</h2>
-          <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>Next →</button>
+      {selected && !swapFirst && (
+        <div className="card" style={{ borderColor: "var(--green)" }}>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <h2 style={{ margin: 0 }}>
+              {selected.users?.name || selected.users?.username} · {fmtDate(selected.date)} ·{" "}
+              {fmtTime(selected.start_time)}–{fmtTime(selected.end_time)}
+              {selected.status !== "normal" && (
+                <span className={`badge ${selected.status === "offered" ? "offered" : "accepted"}`} style={{ marginLeft: 8 }}>
+                  {selected.status}
+                </span>
+              )}
+            </h2>
+            <button className="btn small" onClick={() => setSelected(null)}>✕ Close</button>
+          </div>
+          <div className="row" style={{ marginTop: 12 }}>
+            <label className="field">Reassign to
+              <select defaultValue="" onChange={(e) => e.target.value && api("PATCH", { id: selected.id, user_id: e.target.value }, "Shift reassigned — both members were notified.")}>
+                <option value="">— choose member —</option>
+                {members.filter((u) => u.id !== selected.user_id).map((u) => (
+                  <option key={u.id} value={u.id}>{u.name || u.username}</option>
+                ))}
+              </select>
+            </label>
+            <button className="btn" onClick={() => { setSwapFirst(selected); setSelected(null); }}>
+              Swap with another shift…
+            </button>
+            <button className="btn danger"
+              onClick={() => confirm("Delete this shift?") && api("DELETE", { id: selected.id }, "Shift deleted — the member was notified.")}>
+              Delete shift
+            </button>
+          </div>
         </div>
-        <div className="filter-bar">
-          {[["all", "All"], ["morning", "Morning"], ["afternoon", "Afternoon"], ["night", "Night"]].map(([k, label]) => (
-            <button key={k}
-              className={`user-chip ${kindFilter === k ? "on" : ""}`}
-              onClick={() => setKindFilter(k)}>{label}</button>
-          ))}
-          <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}>
-            <option value="">Everyone</option>
-            {members.map((u) => <option key={u.id} value={u.id}>{u.name || u.username}</option>)}
-          </select>
-          <button className="btn small danger" onClick={clearRange}>Clear a date range…</button>
-        </div>
+      )}
 
-        <div className="cal">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-            <div key={d} className="cal-head">{d}</div>
-          ))}
-          {cells.map((d) => {
-            const key = iso(d);
-            const inMonth = d.getMonth() === month.getMonth();
-            const dayShifts = byDate[key] || [];
-            return (
-              <div key={key} className={`cal-cell ${inMonth ? "" : "out"} ${key === todayIso ? "today" : ""}`}>
-                <div className="cal-daynum">{d.getDate()}</div>
-                {dayShifts.map((s) => {
-                  const kind = shiftKind(s.start_time);
-                  const isSwapSource = swapFirst?.id === s.id;
-                  return (
-                    <button key={s.id}
-                      className={`shift-chip ${kind} clickable ${s.status === "offered" ? "is-offered" : ""}`}
-                      style={isSwapSource ? { outline: "2px solid var(--amber)" } : undefined}
-                      title={`${(s.users?.name || s.users?.username)} · ${fmtTime(s.start_time)}–${fmtTime(s.end_time)} — click to ${swapFirst ? "swap" : "edit"}`}
-                      onClick={() => {
-                        if (swapFirst) {
-                          if (s.id !== swapFirst.id) manualSwap(s.id);
-                        } else {
-                          setAction(s);
-                        }
-                      }}>
-                      {(s.users?.name || s.users?.username || "").split(" ")[0]}{" "}
-                      <span className="chip-time">{fmtTime(s.start_time)}</span>
-                    </button>
-                  );
-                })}
+      <div className="cal">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d} className="cal-head">{d}</div>
+        ))}
+        {cells.map((d) => {
+          const key = iso(d);
+          const inMonth = d.getMonth() === month.getMonth();
+          const dayShifts = byDate[key] || [];
+          return (
+            <div key={key}
+              className={`cal-cell ${inMonth ? "" : "out"} ${key === todayIso ? "today" : ""}`}
+              onClick={() => { setDate(key); setShowForm(true); }}
+              style={{ cursor: "pointer" }}>
+              <div className="cal-daynum" style={{ display: "flex" }}>
+                {d.getDate()}
+                {(() => {
+                  const kc = { morning: 0, afternoon: 0, night: 0 };
+                  ((byDate[key]) || []).forEach((s) => { kc[shiftKind(s.start_time)]++; });
+                  const full = Object.entries(kc).filter(([, n]) => n >= 5).map(([k]) => k);
+                  return full.length > 0
+                    ? <span className="warn-badge" title={`5+ members on: ${full.join(", ")}`}>⚠{full.length > 1 ? full.length : ""}</span>
+                    : null;
+                })()}
               </div>
-            );
-          })}
-        </div>
-        <p className="muted" style={{ marginTop: 8 }}>
-          Click any shift to reassign, swap, or delete it. Past days are not shown.
-        </p>
+              {dayShifts.map((s) => {
+                const kind = shiftKind(s.start_time);
+                const isPicked = selected?.id === s.id || swapFirst?.id === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    className={`shift-chip clickable ${kind} ${s.status === "offered" ? "is-offered" : ""}`}
+                    style={isPicked ? { outline: "2px solid var(--green)" } : undefined}
+                    onClick={(e) => { e.stopPropagation(); onChipClick(s); }}
+                    title={`${s.users?.name || s.users?.username} ${fmtTime(s.start_time)}–${fmtTime(s.end_time)}`}>
+                    {(s.users?.name || s.users?.username || "").split(" ")[0]}{" "}
+                    <span className="chip-time">{fmtTime(s.start_time)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
+      <p className="muted" style={{ marginTop: 8 }}>
+        Click a shift to reassign, swap, or delete it. Click an empty day to prefill the add-shifts form.
+      </p>
+      {shifts !== null && filtered.length === 0 && <p className="empty">No shifts this month.</p>}
     </>
   );
 }

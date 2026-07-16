@@ -3,6 +3,13 @@ import "./globals.css";
 export const metadata = {
   title: "Shift Swap",
   description: "Give away and swap shifts with your colleagues",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Shifts" },
+};
+
+export const viewport = {
+  themeColor: "#10151f",
+  width: "device-width",
+  initialScale: 1,
 };
 
 const themeInit = `

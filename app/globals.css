@@ -290,3 +290,74 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
 
 /* ---- Calendar filters ---- */
 .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+
+/* ---- Mobile app chrome ---- */
+.bottom-nav { display: none; }
+.sheet-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 60;
+}
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
+  background: var(--card); border: 1px solid var(--line); border-bottom: none;
+  border-radius: 16px 16px 0 0; padding: 8px 14px calc(16px + env(safe-area-inset-bottom));
+  max-height: 82vh; overflow-y: auto;
+  animation: sheet-up 0.18s ease-out;
+}
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+.sheet-handle {
+  width: 44px; height: 4px; border-radius: 2px; background: var(--line);
+  margin: 4px auto 10px; cursor: pointer;
+}
+.sheet .card { border: none; padding: 0; margin: 0; background: transparent; }
+
+/* Next-shift card */
+.next-shift {
+  background: linear-gradient(135deg, var(--green-strong), #1f6d52);
+  color: #fff; border-radius: 14px; padding: 16px; margin-bottom: 14px;
+}
+.next-shift .ns-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.85; }
+.next-shift .ns-main { font-family: "Sora", sans-serif; font-size: 20px; font-weight: 700; margin-top: 4px; }
+.next-shift .ns-sub { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+
+/* Agenda (mobile schedule) */
+.day-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.day-card.today { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+.day-card .dc-head { display: flex; justify-content: space-between; align-items: baseline; }
+.day-card .dc-title { font-family: "Sora", sans-serif; font-weight: 600; font-size: 14px; }
+.day-card .dc-off { color: var(--muted); font-size: 13px; padding: 4px 0; }
+.big-chip {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  font: inherit; font-weight: 600; font-size: 14px;
+  border: none; border-radius: 10px; padding: 12px; margin-top: 8px;
+  text-align: left; cursor: pointer;
+}
+.big-chip.morning { background: var(--amber-soft); color: var(--amber); }
+.big-chip.afternoon { background: var(--green-soft); color: var(--green); }
+.big-chip.night { background: var(--blue-soft); color: var(--blue); }
+.big-chip .bc-arrow { margin-left: auto; opacity: 0.6; }
+.big-chip.is-offered { outline: 2px dashed var(--amber); }
+.big-chip.static { cursor: default; }
+
+.warn-badge { color: var(--amber); font-size: 11px; margin-left: auto; }
+
+@media (max-width: 700px) {
+  .bottom-nav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    background: var(--card); border-top: 1px solid var(--line);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+  }
+  .bn-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 6px 2px; text-decoration: none; color: var(--muted); border-radius: 8px;
+  }
+  .bn-item.active { color: var(--green); background: var(--green-soft); }
+  .bn-icon { font-size: 18px; line-height: 1; }
+  .bn-label { font-size: 10.5px; font-weight: 600; }
+
+  .container { padding-bottom: 96px; }   /* room for bottom nav */
+  .nav a.link { display: none; }          /* top bar keeps brand + bell + theme + signout */
+  .card button.btn.primary { width: 100%; }
+}

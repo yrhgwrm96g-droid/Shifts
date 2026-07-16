@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { SessionProvider, useSession } from "next-auth/react";
 import Nav from "./Nav";
+import BottomNav from "./BottomNav";
 
 function Guard({ children, noRedirect }) {
   const { data: session, status } = useSession();
@@ -20,6 +21,7 @@ function Guard({ children, noRedirect }) {
     <>
       <Nav />
       <main className="container">{children}</main>
+      <BottomNav />
     </>
   );
 }

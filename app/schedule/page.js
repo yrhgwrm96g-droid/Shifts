@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import BottomSheet from "@/components/BottomSheet";
+import useIsMobile from "@/components/useIsMobile";
 
 const fmtTime = (t) => t?.slice(0, 5);
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -97,6 +99,7 @@ function OfferDialog({ shift, onClose, onDone }) {
 }
 
 export default function SchedulePage() {
+  const isMobile = useIsMobile();
   const today = new Date();
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [shifts, setShifts] = useState(null);
@@ -119,13 +122,18 @@ export default function SchedulePage() {
   const gridEnd = cells[41];
 
   async function load() {
-    const url = `/api/shifts?from=${iso(gridStart)}&to=${iso(gridEnd)}${showTeam ? "&all=1" : ""}`;
+    let from = iso(gridStart), to = iso(gridEnd);
+    if (isMobile) {
+      const t = new Date(); from = iso(t);
+      const end = new Date(); end.setDate(end.getDate() + 29); to = iso(end);
+    }
+    const url = `/api/shifts?from=${from}&to=${to}${showTeam ? "&all=1" : ""}`;
     const res = await fetch(url);
     const data = await res.json();
     setShifts(data.shifts || []);
     setMe(data.me);
   }
-  useEffect(() => { setShifts(null); load(); }, [month, showTeam]);
+  useEffect(() => { setShifts(null); load(); }, [month, showTeam, isMobile]);
 
   const filtered = (shifts || []).filter((s) => {
     if (!showTeam) return true;
@@ -147,7 +155,8 @@ export default function SchedulePage() {
   people.sort((a, b) => a.label.localeCompare(b.label));
 
   // My total hours in the displayed month
-  const monthPrefix = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-`;
+  const hoursBase = isMobile ? new Date() : month;
+  const monthPrefix = `${hoursBase.getFullYear()}-${String(hoursBase.getMonth() + 1).padStart(2, "0")}-`;
   const myHours = (shifts || [])
     .filter((s) => s.user_id === me && s.date.startsWith(monthPrefix))
     .reduce((sum, s) => {
@@ -159,6 +168,118 @@ export default function SchedulePage() {
 
   const monthLabel = month.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const todayIso = iso(new Date());
+
+  if (isMobile) {
+    const todayIso2 = iso(new Date());
+    const myUpcoming = (shifts || [])
+      .filter((s) => s.user_id === me)
+      .sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time));
+    const nextShift = myUpcoming[0];
+    const relDay = (key) => {
+      const t = new Date(); t.setHours(0,0,0,0);
+      const d = new Date(key + "T00:00:00");
+      const diff = Math.round((d - t) / 86400000);
+      if (diff === 0) return "Today";
+      if (diff === 1) return "Tomorrow";
+      return d.toLocaleDateString(undefined, { weekday: "long" });
+    };
+    const days = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(); d.setDate(d.getDate() + i);
+      days.push(iso(d));
+    }
+
+    return (
+      <Shell>
+        <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+          <h1 style={{ margin: 0 }}>Schedule</h1>
+          <span className="hours-pill">{Math.round(myHours * 10) / 10} h this month</span>
+        </div>
+
+        {!showTeam && (
+          <div className="next-shift">
+            <div className="ns-label">Next shift</div>
+            {nextShift ? (
+              <>
+                <div className="ns-main">
+                  {relDay(nextShift.date)} · {fmtTime(nextShift.start_time)}–{fmtTime(nextShift.end_time)}
+                </div>
+                <div className="ns-sub">
+                  {KIND_LABEL[shiftKind(nextShift.start_time)]} ·{" "}
+                  {new Date(nextShift.date + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "long" })}
+                  {nextShift.status === "offered" ? " · offered on marketplace" : ""}
+                </div>
+              </>
+            ) : (
+              <div className="ns-main">No upcoming shifts</div>
+            )}
+          </div>
+        )}
+
+        <div className="filter-bar">
+          <button className={`user-chip ${!showTeam ? "on" : ""}`} onClick={() => setShowTeam(false)}>My shifts</button>
+          <button className={`user-chip ${showTeam ? "on" : ""}`} onClick={() => setShowTeam(true)}>Team</button>
+          {showTeam && (
+            <>
+              {[["all", "All"], ["morning", "Morn"], ["afternoon", "Aft"], ["night", "Night"]].map(([k, label]) => (
+                <button key={k} className={`user-chip ${kindFilter === k ? "on" : ""}`}
+                  onClick={() => setKindFilter(k)}>{label}</button>
+              ))}
+            </>
+          )}
+        </div>
+
+        {shifts === null && <p className="empty">Loading…</p>}
+
+        {days.map((key) => {
+          const dayShifts = (byDate[key] || [])
+            .slice()
+            .sort((a, b) => a.start_time.localeCompare(b.start_time));
+          return (
+            <div key={key} className={`day-card ${key === todayIso2 ? "today" : ""}`}>
+              <div className="dc-head">
+                <span className="dc-title">{relDay(key)}</span>
+                <span className="muted">
+                  {new Date(key + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                </span>
+              </div>
+              {dayShifts.length === 0 && (
+                <div className="dc-off">{showTeam ? "Nobody scheduled" : "Day off"}</div>
+              )}
+              {dayShifts.map((s) => {
+                const kind = shiftKind(s.start_time);
+                const isMine = s.user_id === me;
+                return (
+                  <button key={s.id}
+                    className={`big-chip ${kind} ${s.status === "offered" ? "is-offered" : ""} ${isMine && !showTeam ? "" : "static"}`}
+                    onClick={() => { if (isMine && !showTeam) setSelected(s); }}>
+                    <span>
+                      {showTeam
+                        ? `${s.users?.name || s.users?.username}`
+                        : KIND_LABEL[kind]}
+                    </span>
+                    <span style={{ fontWeight: 400 }}>{fmtTime(s.start_time)}–{fmtTime(s.end_time)}</span>
+                    {s.status === "offered" && <span className="badge offered">offered</span>}
+                    {isMine && !showTeam && <span className="bc-arrow">›</span>}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        <BottomSheet open={!!selected} onClose={() => setSelected(null)}>
+          {selected && (
+            <OfferDialog
+              shift={selected}
+              onClose={() => setSelected(null)}
+              onDone={() => { setSelected(null); load(); }}
+            />
+          )}
+        </BottomSheet>
+      </Shell>
+    );
+  }
 
   return (
     <Shell>
