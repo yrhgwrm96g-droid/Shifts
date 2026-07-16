@@ -361,3 +361,18 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
   .nav a.link { display: none; }          /* top bar keeps brand + bell + theme + signout */
   .card button.btn.primary { width: 100%; }
 }
+
+/* ---- Mobile: notification panel above everything, full width ---- */
+@media (max-width: 700px) {
+  .bell-panel {
+    position: fixed;
+    top: 58px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+    max-height: 70vh;
+    z-index: 100;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  }
+}
