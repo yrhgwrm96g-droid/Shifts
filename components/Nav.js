@@ -4,11 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
-const links = [
-  { href: "/schedule", label: "Schedule" },
-  { href: "/marketplace", label: "Marketplace" },
-  { href: "/availability", label: "Availability" },
-];
+const linksByRole = (role) =>
+  role === "manager"
+    ? [
+        { href: "/schedule", label: "Team schedule" },
+        { href: "/marketplace", label: "Marketplace" },
+      ]
+    : [
+        { href: "/schedule", label: "Schedule" },
+        { href: "/marketplace", label: "Marketplace" },
+        { href: "/availability", label: "Availability" },
+      ];
 
 function ThemeToggle() {
   const [theme, setTheme] = useState("dark");
@@ -172,6 +178,7 @@ export default function Nav() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
+  const links = linksByRole(role);
   return (
     <nav className="nav">
       <div className="nav-inner">

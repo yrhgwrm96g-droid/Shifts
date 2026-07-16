@@ -8,14 +8,26 @@ export default function BottomNav() {
   const { data: session } = useSession();
   const role = session?.user?.role;
 
-  const items = [
-    { href: "/schedule", label: "Schedule", icon: "📅" },
-    { href: "/marketplace", label: "Market", icon: "🔁" },
-  ];
-  if (role === "user" || !role) items.push({ href: "/availability", label: "Days", icon: "🙋" });
-  if (role === "manager" || role === "admin") {
-    items.push({ href: "/approvals", label: "Approve", icon: "✅" });
-    items.push({ href: "/admin", label: "Manage", icon: "🛠️" });
+  let items;
+  if (role === "manager") {
+    // Seniors: no personal schedule, no availability
+    items = [
+      { href: "/admin", label: "Manage", icon: "🛠️" },
+      { href: "/approvals", label: "Approve", icon: "✅" },
+      { href: "/schedule", label: "Team", icon: "👥" },
+    ];
+  } else if (role === "admin") {
+    items = [
+      { href: "/schedule", label: "Schedule", icon: "📅" },
+      { href: "/approvals", label: "Approve", icon: "✅" },
+      { href: "/admin", label: "Manage", icon: "🛠️" },
+    ];
+  } else {
+    items = [
+      { href: "/schedule", label: "Schedule", icon: "📅" },
+      { href: "/marketplace", label: "Market", icon: "🔁" },
+      { href: "/availability", label: "Days", icon: "🙋" },
+    ];
   }
 
   return (

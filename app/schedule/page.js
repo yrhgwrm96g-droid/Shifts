@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import Shell from "@/components/Shell";
 import BottomSheet from "@/components/BottomSheet";
 import useIsMobile from "@/components/useIsMobile";
@@ -67,39 +68,53 @@ function OfferDialog({ shift, onClose, onDone }) {
         </>
       ) : (
         <>
-          <div className="row" style={{ margin: "12px 0" }}>
-            <label className="field grow">
-              Offer type
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="giveaway">Giveaway — someone takes it, nothing in return</option>
-                <option value="swap">Swap — someone gives me one of their shifts</option>
-              </select>
-            </label>
-            {type === "giveaway" && (
-              <label className="field grow">
-                How much
-                <select value={portion} onChange={(e) => setPortion(e.target.value)}>
-                  <option value="full">Whole shift</option>
-                  <option value="first4">First 4 hours only</option>
-                  <option value="last4">Last 4 hours only</option>
-                </select>
-              </label>
-            )}
-            <label className="field grow">
-              Note (optional)
-              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. doctor appointment" />
-            </label>
+          <p className="muted" style={{ margin: "12px 0 6px" }}>What do you want?</p>
+          <div className="choice-row">
+            <button className={`choice ${type === "giveaway" ? "on" : ""}`} onClick={() => setType("giveaway")}>
+              <span className="choice-icon">🎁</span>
+              <strong>Give it away</strong>
+              <span className="muted">someone just takes it</span>
+            </button>
+            <button className={`choice ${type === "swap" ? "on" : ""}`} onClick={() => setType("swap")}>
+              <span className="choice-icon">🔁</span>
+              <strong>Swap it</strong>
+              <span className="muted">get a shift in return</span>
+            </button>
+          </div>
+          {type === "giveaway" && (
+            <>
+              <p className="muted" style={{ margin: "12px 0 6px" }}>How much of it?</p>
+              <div className="user-chips">
+                <button className={`user-chip ${portion === "full" ? "on" : ""}`} onClick={() => setPortion("full")}>Whole shift</button>
+                <button className={`user-chip ${portion === "first4" ? "on" : ""}`} onClick={() => setPortion("first4")}>First 4 h</button>
+                <button className={`user-chip ${portion === "last4" ? "on" : ""}`} onClick={() => setPortion("last4")}>Last 4 h</button>
+              </div>
+            </>
+          )}
+          <div style={{ margin: "12px 0" }}>
+            <input style={{ width: "100%" }} value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Note for colleagues (optional)" />
           </div>
           {error && <p className="error">{error}</p>}
-          <button className="btn primary" onClick={submit} disabled={busy}>Post offer</button>
+          <button className="btn primary" style={{ width: "100%" }} onClick={submit} disabled={busy}>
+            {busy ? "Posting…" : type === "giveaway" ? "Post giveaway" : "Post swap request"}
+          </button>
         </>
       )}
     </div>
   );
 }
 
+function RoleSync({ onRole }) {
+  const { data } = useSession();
+  useEffect(() => { onRole(data?.user?.role || null); }, [data, onRole]);
+  return null;
+}
+
 export default function SchedulePage() {
   const isMobile = useIsMobile();
+  const [role, setRole] = useState(null);
+  const isStaffOnly = role === "manager"; // managers have no shifts of their own
   const [view, setView] = useState("agenda"); // mobile only: agenda | month
   const today = new Date();
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -135,6 +150,7 @@ export default function SchedulePage() {
     setMe(data.me);
   }
   useEffect(() => { setShifts(null); load(); }, [month, showTeam, isMobile, view]);
+  useEffect(() => { if (isStaffOnly) setShowTeam(true); }, [isStaffOnly]);
 
   const filtered = (shifts || []).filter((s) => {
     if (!showTeam) return true;
@@ -156,7 +172,7 @@ export default function SchedulePage() {
   people.sort((a, b) => a.label.localeCompare(b.label));
 
   // My total hours in the displayed month
-  const hoursBase = isMobile ? new Date() : month;
+  const hoursBase = isMobile && view === "agenda" ? new Date() : month;
   const monthPrefix = `${hoursBase.getFullYear()}-${String(hoursBase.getMonth() + 1).padStart(2, "0")}-`;
   const myHours = (shifts || [])
     .filter((s) => s.user_id === me && s.date.startsWith(monthPrefix))
@@ -192,9 +208,10 @@ export default function SchedulePage() {
 
     return (
       <Shell>
-        <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+        <RoleSync onRole={setRole} />
+        <div className="row row-nav" style={{ justifyContent: "space-between", marginBottom: 10 }}>
           <h1 style={{ margin: 0 }}>Schedule</h1>
-          <span className="hours-pill">{Math.round(myHours * 10) / 10} h this month</span>
+          {!isStaffOnly && <span className="hours-pill">{Math.round(myHours * 10) / 10} h this month</span>}
         </div>
 
         {!showTeam && (
@@ -219,8 +236,12 @@ export default function SchedulePage() {
 
         <div className="filter-bar">
           <button className="user-chip on" onClick={() => setView("month")}>📅 Month view</button>
-          <button className={`user-chip ${!showTeam ? "on" : ""}`} onClick={() => setShowTeam(false)}>My shifts</button>
-          <button className={`user-chip ${showTeam ? "on" : ""}`} onClick={() => setShowTeam(true)}>Team</button>
+          {!isStaffOnly && (
+            <>
+              <button className={`user-chip ${!showTeam ? "on" : ""}`} onClick={() => setShowTeam(false)}>My shifts</button>
+              <button className={`user-chip ${showTeam ? "on" : ""}`} onClick={() => setShowTeam(true)}>Team</button>
+            </>
+          )}
           {showTeam && (
             <>
               {[["all", "All"], ["morning", "Morn"], ["afternoon", "Aft"], ["night", "Night"]].map(([k, label]) => (
@@ -285,15 +306,20 @@ export default function SchedulePage() {
 
   return (
     <Shell>
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+      <RoleSync onRole={setRole} />
+      <div className="row row-nav" style={{ justifyContent: "space-between", marginBottom: 12 }}>
         <h1 style={{ margin: 0 }}>{showTeam ? "Team schedule" : "My schedule"}</h1>
-        <div className="row">
-          <span className="hours-pill" title="Your total scheduled hours this month">
-            {Math.round(myHours * 10) / 10} h this month
-          </span>
-          <button className="btn" onClick={() => setShowTeam(!showTeam)}>
-            {showTeam ? "My shifts" : "Whole team"}
-          </button>
+        <div className="row row-nav">
+          {!isStaffOnly && (
+            <span className="hours-pill" title="Your total scheduled hours this month">
+              {Math.round(myHours * 10) / 10} h this month
+            </span>
+          )}
+          {!isStaffOnly && (
+            <button className="btn" onClick={() => setShowTeam(!showTeam)}>
+              {showTeam ? "My shifts" : "Whole team"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -303,10 +329,10 @@ export default function SchedulePage() {
         </div>
       )}
 
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>← Prev</button>
+      <div className="row row-nav" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>←</button>
         <h2 style={{ margin: 0 }}>{monthLabel}</h2>
-        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>Next →</button>
+        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>→</button>
       </div>
 
       {dayDetail && byDate[dayDetail] && (

@@ -341,10 +341,10 @@ function ShiftsTab() {
         )}
       </div>
 
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>← Prev</button>
+      <div className="row row-nav" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>←</button>
         <h2 style={{ margin: 0 }}>{monthLabel}</h2>
-        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>Next →</button>
+        <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>→</button>
       </div>
 
       <div className="filter-bar">

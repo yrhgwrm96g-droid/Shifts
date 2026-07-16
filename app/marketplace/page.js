@@ -33,17 +33,22 @@ function SwapPicker({ offer, myShifts, onClose, onDone }) {
       <h2>Propose your shift in return</h2>
       <p className="muted">The colleague must confirm before the swap happens.</p>
       {available.length === 0 && <p className="muted">You have no available shifts to offer in return.</p>}
-      <div className="row" style={{ margin: "12px 0" }}>
-        <select className="grow" value={chosen} onChange={(e) => setChosen(e.target.value)}>
-          <option value="">— Select a shift —</option>
-          {available.map((s) => (
-            <option key={s.id} value={s.id}>{shiftStr(s)}</option>
-          ))}
-        </select>
+      <p className="muted" style={{ margin: "10px 0 4px" }}>Tap the shift you'll give in return:</p>
+      <div className="user-chips" style={{ flexDirection: "column", alignItems: "stretch" }}>
+        {available.map((s) => (
+          <button key={s.id}
+            className={`user-chip ${chosen === s.id ? "on" : ""}`}
+            style={{ textAlign: "left", padding: "10px 14px" }}
+            onClick={() => setChosen(s.id)}>
+            {shiftStr(s)}
+          </button>
+        ))}
       </div>
       {error && <p className="error">{error}</p>}
-      <div className="row">
-        <button className="btn primary" onClick={propose} disabled={!chosen || busy}>Send proposal</button>
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn primary" onClick={propose} disabled={!chosen || busy}>
+          {busy ? "Sending…" : "Send proposal"}
+        </button>
         <button className="btn" onClick={onClose}>Cancel</button>
       </div>
     </div>
@@ -129,8 +134,19 @@ export default function MarketplacePage() {
       {offers === null && !error && <p className="empty">Loading…</p>}
       {offers?.length === 0 && <p className="empty">No open offers right now.</p>}
 
-      {(offers || []).map((o) => (
-        <div key={o.id} className="card row">
+      {(offers || []).some((o) => o.status === "awaiting_confirm" && o.from_user === me) && (
+        <h2 style={{ marginTop: 8 }}>⚠ Needs your answer</h2>
+      )}
+      {(offers || [])
+        .slice()
+        .sort((a, b) => {
+          const aNeeds = a.status === "awaiting_confirm" && a.from_user === me ? 0 : 1;
+          const bNeeds = b.status === "awaiting_confirm" && b.from_user === me ? 0 : 1;
+          return aNeeds - bNeeds;
+        })
+        .map((o) => (
+        <div key={o.id}
+          className={`card row ${o.status === "awaiting_confirm" && o.from_user === me ? "needs-answer" : ""}`}>
           <div className="grow">
             <span className={`badge ${o.type}`}>
               {o.type === "swap" ? "Swap" :

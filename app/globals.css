@@ -378,3 +378,16 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
     box-shadow: 0 16px 48px rgba(0,0,0,0.5);
   }
 }
+
+
+/* ---- Big choice cards ---- */
+.choice-row { display: flex; gap: 8px; }
+.choice {
+  flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  font: inherit; text-align: left; cursor: pointer;
+  background: var(--card-raised); border: 2px solid var(--line); border-radius: 12px;
+  padding: 12px; color: var(--ink);
+}
+.choice.on { border-color: var(--green); background: var(--green-soft); }
+.choice .choice-icon { font-size: 20px; }
+.needs-answer { border: 2px solid var(--amber) !important; }

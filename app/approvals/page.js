@@ -33,6 +33,20 @@ function ApprovalsInner() {
     load();
   }
 
+  async function approveAll() {
+    const todo = (deals || []).filter((d) => !d.main_approved);
+    if (todo.length === 0) return;
+    if (!confirm(`Mark all ${todo.length} deal(s) as approved in the MAIN program?`)) return;
+    for (const d of todo) {
+      await fetch("/api/approvals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: d.id, approved: true }),
+      });
+    }
+    load();
+  }
+
   if (status === "loading") return <p className="empty">Loading…</p>;
   if (!["manager", "admin"].includes(session?.user?.role))
     return <p className="empty">This page is for Senior Service Managers and admins.</p>;
@@ -56,6 +70,11 @@ function ApprovalsInner() {
       <p className="muted">
         Completed giveaways and swaps. Tick each one after you have approved it in the MAIN program.
       </p>
+      {filter === "todo" && todoCount > 1 && (
+        <button className="btn" style={{ marginBottom: 10 }} onClick={approveAll}>
+          ✓ Mark all {todoCount} as approved
+        </button>
+      )}
       {error && <p className="error">{error}</p>}
       {deals === null && !error && <p className="empty">Loading…</p>}
       {deals !== null && visible.length === 0 && (
