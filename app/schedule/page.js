@@ -100,6 +100,7 @@ function OfferDialog({ shift, onClose, onDone }) {
 
 export default function SchedulePage() {
   const isMobile = useIsMobile();
+  const [view, setView] = useState("agenda"); // mobile only: agenda | month
   const today = new Date();
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [shifts, setShifts] = useState(null);
@@ -123,7 +124,7 @@ export default function SchedulePage() {
 
   async function load() {
     let from = iso(gridStart), to = iso(gridEnd);
-    if (isMobile) {
+    if (isMobile && view === "agenda") {
       const t = new Date(); from = iso(t);
       const end = new Date(); end.setDate(end.getDate() + 29); to = iso(end);
     }
@@ -133,7 +134,7 @@ export default function SchedulePage() {
     setShifts(data.shifts || []);
     setMe(data.me);
   }
-  useEffect(() => { setShifts(null); load(); }, [month, showTeam, isMobile]);
+  useEffect(() => { setShifts(null); load(); }, [month, showTeam, isMobile, view]);
 
   const filtered = (shifts || []).filter((s) => {
     if (!showTeam) return true;
@@ -169,7 +170,7 @@ export default function SchedulePage() {
   const monthLabel = month.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const todayIso = iso(new Date());
 
-  if (isMobile) {
+  if (isMobile && view === "agenda") {
     const todayIso2 = iso(new Date());
     const myUpcoming = (shifts || [])
       .filter((s) => s.user_id === me)
@@ -184,7 +185,7 @@ export default function SchedulePage() {
       return d.toLocaleDateString(undefined, { weekday: "long" });
     };
     const days = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 30; i++) {
       const d = new Date(); d.setDate(d.getDate() + i);
       days.push(iso(d));
     }
@@ -217,6 +218,7 @@ export default function SchedulePage() {
         )}
 
         <div className="filter-bar">
+          <button className="user-chip on" onClick={() => setView("month")}>📅 Month view</button>
           <button className={`user-chip ${!showTeam ? "on" : ""}`} onClick={() => setShowTeam(false)}>My shifts</button>
           <button className={`user-chip ${showTeam ? "on" : ""}`} onClick={() => setShowTeam(true)}>Team</button>
           {showTeam && (
@@ -295,6 +297,12 @@ export default function SchedulePage() {
         </div>
       </div>
 
+      {isMobile && (
+        <div className="filter-bar">
+          <button className="user-chip on" onClick={() => setView("agenda")}>📋 Agenda view</button>
+        </div>
+      )}
+
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
         <button className="btn" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>← Prev</button>
         <h2 style={{ margin: 0 }}>{monthLabel}</h2>
@@ -318,8 +326,14 @@ export default function SchedulePage() {
                     <span className={`shift-chip ${kind}`} style={{ cursor: "default" }}>
                       {KIND_LABEL[kind]} {fmtTime(s.start_time)}–{fmtTime(s.end_time)}
                     </span>
-                    <span>{s.users?.name || s.users?.username}{s.user_id === me ? " (you)" : ""}</span>
+                    <span>{showTeam ? (s.users?.name || s.users?.username) : ""}{s.user_id === me ? (showTeam ? " (you)" : "My shift") : ""}</span>
                     {s.status === "offered" && <span className="badge offered">offered</span>}
+                    {s.user_id === me && !showTeam && (
+                      <button className="btn small" style={{ marginLeft: "auto" }}
+                        onClick={() => { setDayDetail(null); setSelected(s); }}>
+                        {s.status === "offered" ? "Manage offer" : "Offer…"}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -360,8 +374,8 @@ export default function SchedulePage() {
           return (
             <div key={key}
               className={`cal-cell ${inMonth ? "" : "out"} ${key === todayIso ? "today" : ""}`}
-              onClick={() => { if (showTeam && dayShifts.length > 0) setDayDetail(key); }}
-              style={showTeam && dayShifts.length > 0 ? { cursor: "pointer" } : undefined}>
+              onClick={() => { if ((showTeam || isMobile) && dayShifts.length > 0) setDayDetail(key); }}
+              style={(showTeam || isMobile) && dayShifts.length > 0 ? { cursor: "pointer" } : undefined}>
               <div className="cal-daynum">{d.getDate()}</div>
               {dayShifts.map((s) => {
                 const kind = shiftKind(s.start_time);
