@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/supabase";
 import { currentUser, json } from "@/lib/session";
 
+const VALID_ROLES = ["user", "manager", "admin"];
+
 async function requireAdmin() {
   const user = await currentUser();
   if (!user || user.role !== "admin") return null;
@@ -45,12 +47,14 @@ export async function POST(req) {
   if (!body.temp_password || body.temp_password.length < 8)
     return json({ error: "Temporary password must be at least 8 characters" }, 400);
 
+  const role = VALID_ROLES.includes(body.role) ? body.role : "user";
+
   const hash = await bcrypt.hash(body.temp_password, 10);
   const { error } = await db.from("users").insert({
     username,
     name: body.name?.trim() || null,
     password_hash: hash,
-    role: body.role === "admin" ? "admin" : "user",
+    role,
   });
   if (error) {
     if (error.code === "23505") return json({ error: "That username is already taken" }, 400);

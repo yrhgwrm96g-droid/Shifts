@@ -45,7 +45,7 @@ function Bell() {
   }
   useEffect(() => {
     load();
-    const t = setInterval(load, 60000); // refresh every minute
+    const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
@@ -102,16 +102,12 @@ export default function Nav() {
           </Link>
         ))}
         {(role === "manager" || role === "admin") && (
-          <>
-            <Link href="/approvals" className={`link ${pathname === "/approvals" ? "active" : ""}`}>Approvals</Link>
-            <Link href="/manage" className={`link ${pathname === "/manage" ? "active" : ""}`}>Manage</Link>
-          </>
+          <Link href="/approvals" className={`link ${pathname === "/approvals" ? "active" : ""}`}>Approvals</Link>
         )}
-        {role === "admin" && (
-          <Link href="/admin" className={`link ${pathname === "/admin" ? "active" : ""}`}>Admin</Link>
-        )}
-        {role === "manager" && (
-          <Link href="/admin" className={`link ${pathname === "/admin" ? "active" : ""}`}>Manage</Link>
+        {(role === "manager" || role === "admin") && (
+          <Link href="/admin" className={`link ${pathname === "/admin" ? "active" : ""}`}>
+            {role === "admin" ? "Admin" : "Manage"}
+          </Link>
         )}
         <span className="spacer" />
         <Bell />
